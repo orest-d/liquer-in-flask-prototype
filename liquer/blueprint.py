@@ -1,6 +1,7 @@
 import logging
-from flask import Flask, Response, Blueprint, request, redirect, url_for
+from flask import Blueprint, jsonify
 import liquer
+import liquer.commands
 
 app = Blueprint('liquer', __name__)
 logging.basicConfig()
@@ -24,4 +25,14 @@ def index():
 
 @app.route('/q/<path:query>')
 def serve(query):
-    return liquer.execute(query)
+    return liquer.process(query).response()
+
+@app.route('/api/commands.json')
+def commands():
+    return jsonify(liquer.commands_data())
+
+@app.route('/api/debug-json/<path:query>')
+def debug_json(query):
+    state = liquer.process(query).state()
+    print(state)
+    return jsonify(state)
