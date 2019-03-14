@@ -5,7 +5,7 @@ import pandas as pd
 class HdxState(State):
     def __init__(self):
         super().__init__()
-        self.hxl_tags={}
+        self.hxl_tags=[]
     def hdx_resource(self, server, dataset_id, resource_id, filename=None):
         prefix = dict(prod="https://data.humdata.org/dataset/",
                       test="https://test-data.humdata.org/dataset/",

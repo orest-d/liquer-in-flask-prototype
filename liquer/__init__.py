@@ -38,6 +38,7 @@ def command_from_callable(f):
     return Command(f=f, name=name, label=identifier_to_label(name), short_doc=short_doc, doc=doc, arguments=arguments)
 
 def parse(query):
+    query=query.replace("+"," ")
     return [cmd.split("~") for cmd in query.split("/")]
 
 
