@@ -2,6 +2,8 @@ import traceback
 from collections import namedtuple
 import inspect
 from liquer.state import State
+from liquer.cache import NoCache
+
 
 Command = namedtuple("Command",["f","name","label","short_doc", "doc","arguments"] )
 
@@ -38,9 +40,31 @@ def command_from_callable(f):
     return Command(f=f, name=name, label=identifier_to_label(name), short_doc=short_doc, doc=doc, arguments=arguments)
 
 def parse(query):
-    query=query.replace("+"," ")
-    return [cmd.split("~") for cmd in query.split("/")]
+    return [[decode_token(etoken) for etoken in eqv.split("~")] for eqv in query.split("/")]
 
+def encode_token(token):
+    return (token.replace("-","--")
+    .replace("https://","-H")
+    .replace("http://","-h")
+    .replace("://","-P")
+    .replace("/","-I")
+    .replace("~","-T")
+    .replace(" ","-_")
+    )
+
+def decode_token(token):
+    return (token
+    .replace("-H","https://")
+    .replace("-h","http://")
+    .replace("-P","://")
+    .replace("-I","/")
+    .replace("-T","~")
+    .replace("--","-")
+    .replace("-_"," ")
+    )
+
+def encode(ql):
+    return "/".join("~".join(encode_token(token) for token in qv) for qv in ql)
 
 _state_factory = None
 
@@ -55,16 +79,45 @@ def new_state():
 
 COMMANDS = {}
 
+_cache = None
+def set_cache(c=None):
+    global _cache
+    _cache = c
+
+def cache():
+    global _cache
+    if _cache is None:
+        _cache = NoCache()
+    return _cache
+        
+
 def command(f):
     global COMMANDS
     COMMANDS[f.__name__] = command_from_callable(f)
     return f
 
-def process(query):
+def start_state(query):
+    state = cache().get(query)
+    if state is not None:
+        return state,[]
+
     ql=parse(query)
-    state = new_state()
-    state.query=query
     for i,qv in enumerate(ql):
+        partial_commands = ql[:i+1]
+        partial_query = encode(partial_commands)
+        state = cache().get(partial_query)
+        if state is not None:
+            ql = ql[i+1:]
+            break
+    if state is None:
+        state = new_state()
+    return state,ql
+
+def process(query):
+    state, ql = start_state(query)
+    for i,qv in enumerate(ql):
+        state.commands.append(qv)
+        state.query = encode(state.commands)
         if i == len(ql)-1:
             if len(qv)==1 and '.' in qv[0]:
                 state.with_filename(qv[0])
@@ -76,10 +129,12 @@ def process(query):
                 state = COMMANDS[command_name].f(state,*qv)
             except Exception as e:
                 traceback.print_exc()
-                return state.log_exception(message=str(e), traceback = traceback.format_exc(), number = i+1, qv = qv)
+                return state.log_exception(message=str(e), traceback = traceback.format_exc())
         else:
-            return state.log_error(message=f"Unknown command: {command_name}", number=i + 1, qv=qv)
+            return state.log_error(message=f"Unknown command: {command_name}")
+        cache().store(state, final_state=False)
 
+    cache().store(state, final_state=False)
     return state
 
 def commands_data():

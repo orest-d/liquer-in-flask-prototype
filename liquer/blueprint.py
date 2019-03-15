@@ -1,5 +1,5 @@
 import logging
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, redirect
 import liquer
 import liquer.commands
 
@@ -11,6 +11,10 @@ logger.setLevel(logging.DEBUG)
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index.html', methods=['GET', 'POST'])
 def index():
+    return redirect("/liquer/static/index.html")
+
+@app.route('/info.html', methods=['GET', 'POST'])
+def info():
     return """
 <html>
     <head>

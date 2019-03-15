@@ -10,7 +10,11 @@ window.onload = function () {
             message_on: false,
             query: "From~https~raw.githubusercontent.com~OCHA-DAP~scraperwiki-snapshot~master~processed_datasets.csv/data.html",
             query_response: "",
-            query_debug: {}
+            query_debug: {},
+            ql:[
+                ["From","https://raw.githubusercontent.com/OCHA-DAP/scraperwiki-snapshot/master/processed_datasets.csv"]                
+            ],
+            qfilename:"data.csv"            
         },
         methods: {
             error: function (message, reason) {
@@ -24,6 +28,11 @@ window.onload = function () {
                 this.status_color = "green";
                 this.message = message;
                 console.log("INFO:" + message);
+            },
+            build_query:function(){
+                for (var i=0;i<this.ql.length;i++){
+
+                }
             },
             execute_query: function () {
                 this.info("Execute query: " + this.query);

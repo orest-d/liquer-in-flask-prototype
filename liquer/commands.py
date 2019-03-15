@@ -119,4 +119,10 @@ def In(state, command, column, *values):
             pass
     df = df.loc[index,:]
     return state.with_df(df)
-    
+
+@command
+def Split(state, command, column):
+   df = state.df()
+   values = df[column].unique()
+   state.data = ", ".join(values)
+   return state

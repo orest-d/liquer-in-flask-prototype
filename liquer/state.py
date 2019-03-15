@@ -2,6 +2,7 @@ from flask import jsonify, Response, send_file
 import pandas as pd
 from io import BytesIO
 
+
 class State(object):
     MIMETYPES = dict(
         json="application/json",
@@ -28,89 +29,130 @@ class State(object):
         self.filename = None
         self.extension = None
         self.data = None
-        self.log=[]
-        self.is_error=False
-        self.message=""
+        self.log = []
+        self.is_error = False
+        self.message = ""
+        self.commands = []
 
     def df(self):
         if isinstance(self.data, pd.DataFrame):
             return self.data
         raise Exception(f"Data is not a DataFrame but {type(self.data)}")
-    def with_df(self,df):
+
+    def with_df(self, df):
         if not isinstance(df, pd.DataFrame):
-            raise Exception(f"set_df: Data is not a DataFrame but {type(self.data)}")
+            raise Exception(
+                f"set_df: Data is not a DataFrame but {type(self.data)}")
         self.data = df
         self.with_columns(df.columns)
         return self
 
-    def log_command(self,qv,number):
-        self.log.append(dict(kind="command",qv=qv,command_number=number))
+    def log_command(self, qv, number):
+        self.log.append(dict(kind="command", qv=qv, command_number=number))
         return self
-    def log_error(self,message,qv,number):
-        self.log.append(dict(kind="error",qv=qv,command_number=number,message=message))
-        self.is_error=True
+
+    def log_error(self, message, qv, number):
+        self.log.append(
+            dict(kind="error", qv=qv, command_number=number, message=message))
+        self.is_error = True
         self.message = message
         return self
-    def log_warning(self,message):
-        self.log.append(dict(kind="warning",message=message))
+
+    def log_warning(self, message):
+        self.log.append(dict(kind="warning", message=message))
         self.message = message
         return self
-    def log_exception(self,message,traceback,qv,number):
-        self.log.append(dict(kind="error",qv=qv,command_number=number,message=message,traceback=traceback))
-        self.is_error=True
+
+    def log_exception(self, message, traceback, qv, number):
+        self.log.append(dict(kind="error", qv=qv, command_number=number,
+                             message=message, traceback=traceback))
+        self.is_error = True
         self.message = message
         return self
-    def log_info(self,message):
-        self.log.append(dict(kind="info",message=message))
+
+    def log_info(self, message):
+        self.log.append(dict(kind="info", message=message))
         self.message = message
         return self
+
     def state(self):
         return dict(
-            query = self.query,
-            sources = self.sources,
-            columns = self.columns,
-            column_synonyms = self.column_synonyms,
-            filename = self.filename,
-            extension = self.extension,
-            mime = self.MIMETYPES.get(self.extension),
-            log = self.log,
-            is_error = self.is_error,
-            message = self.message
+            query=self.query,
+            sources=self.sources,
+            columns=self.columns,
+            column_synonyms=self.column_synonyms,
+            filename=self.filename,
+            extension=self.extension,
+            mime=self.MIMETYPES.get(self.extension),
+            log=self.log,
+            is_error=self.is_error,
+            message=self.message,
+            commands=self.commands
         )
-    def with_columns(self,columns):
+
+    def from_state(self, state):
+        if isinstance(state, self.__class__):
+            state = state.__dict__
+        self.query = state["query"]
+        self.sources = state["sources"]
+        self.columns = state["columns"]
+        self.column_synonyms = state["column_synonyms"]
+        self.filename = state["filename"]
+        self.extension = state["extension"]
+        self.log = state["log"]
+        self.is_error = state["is_error"]
+        self.message = state["message"]
+        self.commands = state["commands"]
+        return self
+
+    def clone(self):
+        state = self.__class__()
+        state = state.from_state(self)
+        if isinstance(self.data, pd.DataFrame):
+            state.data = self.data.copy()
+        elif isinstance(self.data, str):
+            state.data = self.data
+        else:
+            raise Exception(
+                f"Unsupported data type in clone: {repr(type(self.data))}")
+        return state
+
+    def with_columns(self, columns):
         self.columns = list(columns)
         assert len(columns) == len(set(columns))
-        self.column_synonyms={}
-        for i,c in enumerate(columns):
-            self.column_synonyms[c]=c
-            for synonym in [c.lower().replace("-","_").replace(" ","_"), str(i+1)]:
+        self.column_synonyms = {}
+        for i, c in enumerate(columns):
+            self.column_synonyms[c] = c
+            for synonym in [c.lower().replace("-", "_").replace(" ", "_"), str(i+1)]:
                 if synonym not in columns and synonym not in self.column_synonyms:
-                    self.column_synonyms[synonym]=c
+                    self.column_synonyms[synonym] = c
 
-    def add_source(self,source):
+    def add_source(self, source):
         if source not in self.sources:
             self.sources.append(source)
         return self
-    def with_filename(self,filename):
+
+    def with_filename(self, filename):
         self.filename = filename
         if "." in filename:
             self.extension = filename.split(".")[-1].lower()
         return self
-    def url_source(self,qv):
-        if qv[0] in ("http","https","ftp","file"):
+
+    def url_source(self, qv):
+        if qv[0] in ("http", "https", "ftp", "file"):
             url = qv[0]+"://"
-            if qv[0]=="file":
-                url+="/"
-            url+="/".join(qv[1:])
+            if qv[0] == "file":
+                url += "/"
+            url += "/".join(qv[1:])
         else:
-            url="http://"
+            url = "http://"
             url += "/".join(qv)
         if "." in qv[-1]:
             self.with_filename(qv[-1])
         self.add_source(url)
         return url
 
-    def expand_columns(self,columns):
+    def expand_columns(self, columns):
         expanded = []
         for c in columns:
             cc = self.column_synonyms.get(c)
@@ -120,21 +162,21 @@ class State(object):
                 expanded.append(cc)
         return expanded
 
-    def expand_column_values(self,column_values):
+    def expand_column_values(self, column_values):
         columns = column_values[::2]
         values = column_values[1::2]
-        if len(columns)<len(values):
+        if len(columns) < len(values):
             self.log_warning(f"Columns less than values")
-        if len(columns)>len(values):
+        if len(columns) > len(values):
             self.log_warning(f"Columns more than values")
 
         expanded = []
-        for c,v in zip(columns,values):
+        for c, v in zip(columns, values):
             cc = self.column_synonyms.get(c)
             if cc is None:
                 self.log_warning(f"Column '{c}' not recognized")
             else:
-                expanded.append((cc,v))
+                expanded.append((cc, v))
         return expanded
 
     def response(self):
@@ -172,8 +214,8 @@ class State(object):
 
         if isinstance(result, str):
             return Response(result, mimetype=mimetype)
-        if isinstance(result,dict):
-            assert (extension=="json")
+        if isinstance(result, dict):
+            assert (extension == "json")
             return jsonify(result)
 
         return result
