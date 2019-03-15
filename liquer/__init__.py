@@ -20,7 +20,7 @@ def command_from_callable(f):
     short_doc = doc.split("\n")[0]
     arguments=[]
     sig = inspect.signature(f)
-    for argname in list(sig.parameters)[1:]:
+    for argname in list(sig.parameters)[2:]:
         arg = dict(name=argname, label = identifier_to_label(argname))
         p = sig.parameters[argname]
         if p.default != inspect.Parameter.empty:

@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify
 import liquer
 import liquer.commands
 
-app = Blueprint('liquer', __name__)
+app = Blueprint('liquer', __name__, static_folder='static')
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
