@@ -24,7 +24,23 @@ def MPL(state, command, *series):
         elif t == "xy":
             xcol = state.expand_column(series.pop())
             ycol = state.expand_column(series.pop())
+            state.log_info(f"Chart XY ({xcol} {ycol})")
             axis.plot(df[xcol],df[ycol],label=state.column_label(ycol))
+            continue
+        elif t == "xye":
+            xcol = state.expand_column(series.pop())
+            ycol = state.expand_column(series.pop())
+            ecol = state.expand_column(series.pop())
+            state.log_info(f"Chart XY ({xcol} {ycol}) Error:{ecol}")
+            axis.errorbar(df[xcol],df[ycol],yerr=df[ecol],label=state.column_label(ycol))
+            continue
+        elif t == "xyee":
+            xcol = state.expand_column(series.pop())
+            ycol = state.expand_column(series.pop())
+            e1col = state.expand_column(series.pop())
+            e2col = state.expand_column(series.pop())
+            state.log_info(f"Chart XY ({xcol} {ycol}) Error:({e1col},{e2col})")
+            axis.errorbar(df[xcol],df[ycol],yerr=[df[e1col],df[e2col]],label=state.column_label(ycol))
             continue
         elif t == "cxy":
             c = series.pop()
@@ -34,10 +50,17 @@ def MPL(state, command, *series):
             continue
         else:
             state.log_warning(f"Unrecognized MPL parameter {t}")
-     
+    fig.legend()
     output = io.BytesIO()
     fig.savefig(output, dpi=300, format=extension)
     state.data = output.getvalue()
     state.extension=extension
     return state
 
+@command
+def TestData(state, command):
+    """Test data
+    """
+    x=np.linspace(-5,5,100)
+    df = pd.DataFrame(dict(x=x,y=np.sin(x),y1=0.1*np.sin(x),y2=0.2*np.sin(x+0.1)))
+    return state.with_df(df)

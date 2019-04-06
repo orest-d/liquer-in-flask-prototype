@@ -18,7 +18,8 @@ class State(object):
         msgpack='application/x-msgpack',
         hdf5='application/x-hdf',
         h5='application/x-hdf',
-        png='image/png'
+        png='image/png',
+        svg='image/svg+xml'
     )
 
     def __init__(self):
@@ -195,7 +196,7 @@ class State(object):
         return self.expand_columns([column])[0]
     def column_label(self,column):
         return str(self.expand_column(column)).replace("_"," ")
-        
+
     def expand_column_values(self, column_values):
         columns = column_values[::2]
         values = column_values[1::2]
