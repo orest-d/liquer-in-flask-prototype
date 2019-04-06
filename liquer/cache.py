@@ -1,3 +1,5 @@
+import os.path
+
 class NoCache:
     def get(self,key):
         return None
@@ -12,3 +14,6 @@ class MemoryCache:
     def store(self,state):
         self.storage[state.query]=state.clone()
 
+class FileCache:
+    def __init__(self,path):
+        self.path=path

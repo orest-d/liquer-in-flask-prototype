@@ -25,7 +25,7 @@ window.onload = function () {
             },
             info: function (message) {
                 this.status = "OK";
-                this.status_color = "green";
+                this.status_color = "";
                 this.message = message;
                 console.log("INFO:" + message);
             },

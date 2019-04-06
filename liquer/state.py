@@ -17,7 +17,8 @@ class State(object):
         csv='text/csv',
         msgpack='application/x-msgpack',
         hdf5='application/x-hdf',
-        h5='application/x-hdf'
+        h5='application/x-hdf',
+        png='image/png'
     )
 
     def __init__(self):
@@ -29,6 +30,7 @@ class State(object):
         self.filename = None
         self.extension = None
         self.data = None
+        self.data_type = None
         self.log = []
         self.is_error = False
         self.message = ""
@@ -39,11 +41,20 @@ class State(object):
             return self.data
         raise Exception(f"Data is not a DataFrame but {type(self.data)}")
 
+    def with_data(self,data):
+        if isinstance(data, pd.DataFrame):
+            return self.with_df(data)
+        if isinstance(data, str):
+            self.data=data
+            self.data_type="String"
+        return self
+
     def with_df(self, df):
         if not isinstance(df, pd.DataFrame):
             raise Exception(
                 f"set_df: Data is not a DataFrame but {type(self.data)}")
         self.data = df
+        self.data_type="DataFrame"
         self.with_columns(df.columns)
         return self
 
@@ -51,9 +62,9 @@ class State(object):
         self.log.append(dict(kind="command", qv=qv, command_number=number))
         return self
 
-    def log_error(self, message, qv, number):
+    def log_error(self, message):
         self.log.append(
-            dict(kind="error", qv=qv, command_number=number, message=message))
+            dict(kind="error", message=message))
         self.is_error = True
         self.message = message
         return self
@@ -63,8 +74,8 @@ class State(object):
         self.message = message
         return self
 
-    def log_exception(self, message, traceback, qv, number):
-        self.log.append(dict(kind="error", qv=qv, command_number=number,
+    def log_exception(self, message, traceback):
+        self.log.append(dict(kind="error",
                              message=message, traceback=traceback))
         self.is_error = True
         self.message = message
@@ -117,6 +128,24 @@ class State(object):
                 f"Unsupported data type in clone: {repr(type(self.data))}")
         return state
 
+    def save_data(self,f):
+        if isinstance(self.data, pd.DataFrame):
+            self.data.to_msgpack(f)
+        elif isinstance(self.data, str):
+            f.write(self.data)
+        else:
+            raise Exception(
+                f"Unsupported data type in save_data: {repr(type(self.data))}")
+
+    def load_data(self,f):
+        if self.data_type == "DataFrame":
+            return self.with_df(pd.read_msgpack(f))
+        elif self.data_type == "String":
+            return self.with_data(f.read())
+        else:
+            raise Exception(
+                f"Unsupported data type in load_data: {self.data_type}")
+
     def with_columns(self, columns):
         self.columns = list(columns)
         assert len(columns) == len(set(columns))
@@ -162,6 +191,11 @@ class State(object):
                 expanded.append(cc)
         return expanded
 
+    def expand_column(self,column):
+        return self.expand_columns([column])[0]
+    def column_label(self,column):
+        return str(self.expand_column(column)).replace("_"," ")
+        
     def expand_column_values(self, column_values):
         columns = column_values[::2]
         values = column_values[1::2]
@@ -213,6 +247,8 @@ class State(object):
             return Response(df.to_csv(index=False), mimetype=mimetype)
 
         if isinstance(result, str):
+            return Response(result, mimetype=mimetype)
+        if isinstance(result, bytes):
             return Response(result, mimetype=mimetype)
         if isinstance(result, dict):
             assert (extension == "json")

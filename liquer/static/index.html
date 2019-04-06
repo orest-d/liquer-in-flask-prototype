@@ -115,9 +115,7 @@
                         <li v-for="item in query_debug.log">
                           <div v-if="item.kind=='error'">
                             <v-icon color="red">error</v-icon>
-                            <span>{{item.command_number}}</span>
                             {{item.message}}
-                            <v-chip label outline v-for="cmd in item.qv">{{cmd}}</v-chip>
                           </div>
                           <div v-if="item.kind=='warning'">
                             <v-icon color="yellow">warning</v-icon>{{item.message}}
