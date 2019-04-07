@@ -101,7 +101,7 @@ class State(object):
             message=self.message,
             commands=self.commands
         )
-
+    
     def from_state(self, state):
         if isinstance(state, self.__class__):
             state = state.__dict__

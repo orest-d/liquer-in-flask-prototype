@@ -5,6 +5,8 @@ from flask import Flask, Response
 import liquer.blueprint as bp
 import webbrowser
 import liquer.charts
+from liquer.cache import FileCache
+import liquer
 
 app = Flask(__name__)
 logging.basicConfig()
@@ -14,6 +16,7 @@ werkzeug_logger = logging.getLogger('werkzeug')
 werkzeug_logger.setLevel(logging.INFO)
 url_prefix='/liquer'
 app.register_blueprint(bp.app, url_prefix=url_prefix)
+liquer.set_cache(FileCache("cache"))
 
 if __name__ == '__main__':
     webbrowser.open("http://localhost:5000"+url_prefix)

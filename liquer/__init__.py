@@ -14,15 +14,17 @@ def identifier_to_label(identifier):
     txt = txt[0].upper()+txt[1:]
     return txt
 
-def command_from_callable(f):
+def command_from_callable(f,command_f=None,skip_args=2):
     name = f.__name__
     doc = f.__doc__
     if doc is None:
         doc = ""
+    if command_f is None:
+        command_f=f
     short_doc = doc.split("\n")[0]
     arguments=[]
     sig = inspect.signature(f)
-    for argname in list(sig.parameters)[2:]:
+    for argname in list(sig.parameters)[skip_args:]:
         arg = dict(name=argname, label = identifier_to_label(argname))
         p = sig.parameters[argname]
         if p.default != inspect.Parameter.empty:
@@ -37,7 +39,7 @@ def command_from_callable(f):
             arg["ui"] = "url"
         arguments.append(arg)
 
-    return Command(f=f, name=name, label=identifier_to_label(name), short_doc=short_doc, doc=doc, arguments=arguments)
+    return Command(f=command_f, name=name, label=identifier_to_label(name), short_doc=short_doc, doc=doc, arguments=arguments)
 
 def parse(query):
     return [[decode_token(etoken) for etoken in eqv.split("~")] for eqv in query.split("/")]
@@ -95,6 +97,32 @@ def command(f):
     global COMMANDS
     COMMANDS[f.__name__] = command_from_callable(f)
     return f
+
+class DataFrameCommand:
+    def __init__(self,f):
+        self.f=f
+    def __call__(self,state,command,*arg):
+        df = state.df()
+        return state.with_df(self.f(df,*arg))
+
+class DataFrameSource:
+    def __init__(self,f):
+        self.f=f
+    def __call__(self,state,command,*arg):
+        return state.with_df(self.f(*arg))
+
+def df_command(f):
+    global COMMANDS
+    command_f = DataFrameCommand(f)
+    cmd = command_from_callable(f,command_f=DataFrameCommand(f),skip_args=1)
+    COMMANDS[f.__name__] = cmd
+    return f
+
+def df_source(f):
+    global COMMANDS
+    COMMANDS[f.__name__] = command_from_callable(f,command_f=DataFrameSource(f),skip_args=0)
+    return f
+
 
 def start_state(query):
     state = cache().get(query)

@@ -57,10 +57,9 @@ def MPL(state, command, *series):
     state.extension=extension
     return state
 
-@command
-def TestData(state, command):
+@df_source
+def TestData():
     """Test data
     """
     x=np.linspace(-5,5,100)
-    df = pd.DataFrame(dict(x=x,y=np.sin(x),y1=0.1*np.sin(x),y2=0.2*np.sin(x+0.1)))
-    return state.with_df(df)
+    return pd.DataFrame(dict(x=x,y=np.sin(x),y1=0.1*np.sin(x),y2=0.2*np.sin(x+0.1)))
