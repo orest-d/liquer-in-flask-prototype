@@ -96,7 +96,7 @@
                   </tr>
                   <tr>
                     <th style="padding: 10px;">Filename</th>
-                    <td style="padding: 10px;">{{query_debug.filename}} <v-chip>{{query_debug.extension}}</v-chip>
+                    <td style="padding: 10px;">{{query_debug.filename}} <a :href="query_debug.url">(open)</a><v-chip>{{query_debug.extension}}</v-chip>
                       <v-chip>{{query_debug.mime}}</v-chip>
                     </td>
                   </tr>

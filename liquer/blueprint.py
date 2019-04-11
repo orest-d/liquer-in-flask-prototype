@@ -37,6 +37,7 @@ def commands():
 
 @app.route('/api/debug-json/<path:query>')
 def debug_json(query):
-    state = liquer.process(query).state()
-    print(state)
-    return jsonify(state)
+    state = liquer.process(query)
+    state_json = state.state()
+    state_json["url"]=liquer.commands.Link(state,"Link","url",removelast=False).data
+    return jsonify(state_json)

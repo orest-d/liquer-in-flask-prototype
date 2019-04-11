@@ -137,18 +137,21 @@ def Set(state,command,name,value=True):
     return state
 
 @command
-def Link(state,command,linktype=None):
+def Link(state,command,linktype=None,removelast=True):
     """Return a link to the result.
     Linktype can be specified as parameter or as a state variable (e.g. Set~linktype~query)
     linktype can be
-    - query : just a query from the state - (without the Link command)
+    - query : just a query from the state - without the last command (Link) if removelast is True
     - dataurl : data URL (base64-encoded)
-    - htmlimage :html image element
+    - htmlimage : html image element
+    - path : absolute url path (without server)
+    - url : complete url
     """
+    q = encode(parse(state.query)[:-1]) if removelast else state.query
     if linktype is None:
         linktype = state.vars.get("linktype","query")
     if linktype == "query":
-        state.data = encode(parse(state.query)[:-1])
+        state.data = q
         state.extension = "txt"
     elif linktype == "dataurl":
         encoded = base64.b64encode(state.as_bytes()).decode('ascii')
@@ -160,5 +163,12 @@ def Link(state,command,linktype=None):
         mime = state.mimetype()
         state.data = f'<img src="data:{mime};base64,{encoded}"/>'
         state.extension = "html"
+    elif linktype == 'path':
+        state.data = state.vars.get("api_path","/q/")+q
+        state.extension = "txt"
+    elif linktype == 'url':
+        state.data = state.vars.get("server","http://localhost")+state.vars.get("api_path","/q/")+q
+        state.extension = "txt"
+
 
     return state
