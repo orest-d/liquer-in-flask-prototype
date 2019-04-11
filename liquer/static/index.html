@@ -116,6 +116,7 @@
                           <div v-if="item.kind=='error'">
                             <v-icon color="red">error</v-icon>
                             {{item.message}}
+                            <pre>{{item.traceback}}</pre>
                           </div>
                           <div v-if="item.kind=='warning'">
                             <v-icon color="yellow">warning</v-icon>{{item.message}}

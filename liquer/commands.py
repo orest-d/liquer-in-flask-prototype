@@ -2,6 +2,7 @@ from liquer import *
 import pandas as pd
 import io
 from urllib.request import urlopen
+import base64
 
 @command
 def From(state, command, *url):
@@ -122,7 +123,42 @@ def In(state, command, column, *values):
 
 @command
 def Split(state, command, column):
-   df = state.df()
-   values = df[column].unique()
-   state.data = ", ".join(values)
-   return state
+    df = state.df()
+    values = df[column].unique()
+    state.data = ", ".join(values)
+    return state
+
+@command
+def Set(state,command,name,value=True):
+    """Set the state variable
+    Sets a state variable with 'name' to 'value'. If 'value' is not specified, variable is set to True.
+    """
+    state.vars[name]=value
+    return state
+
+@command
+def Link(state,command,linktype=None):
+    """Return a link to the result.
+    Linktype can be specified as parameter or as a state variable (e.g. Set~linktype~query)
+    linktype can be
+    - query : just a query from the state - (without the Link command)
+    - dataurl : data URL (base64-encoded)
+    - htmlimage :html image element
+    """
+    if linktype is None:
+        linktype = state.vars.get("linktype","query")
+    if linktype == "query":
+        state.data = encode(parse(state.query)[:-1])
+        state.extension = "txt"
+    elif linktype == "dataurl":
+        encoded = base64.b64encode(state.as_bytes()).decode('ascii')
+        mime = state.mimetype()
+        state.data = f'data:{mime};base64,{encoded}'
+        state.extension = "txt"
+    elif linktype == "htmlimage":
+        encoded = base64.b64encode(state.as_bytes()).decode('ascii')
+        mime = state.mimetype()
+        state.data = f'<img src="data:{mime};base64,{encoded}"/>'
+        state.extension = "html"
+
+    return state

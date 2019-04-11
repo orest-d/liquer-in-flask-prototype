@@ -1,7 +1,7 @@
 from flask import jsonify, Response, send_file
 import pandas as pd
-from io import BytesIO
-
+from io import BytesIO, StringIO
+import json
 
 class State(object):
     MIMETYPES = dict(
@@ -19,7 +19,9 @@ class State(object):
         hdf5='application/x-hdf',
         h5='application/x-hdf',
         png='image/png',
-        svg='image/svg+xml'
+        svg='image/svg+xml',
+        jpg='image/jpeg',
+        jpeg = 'image/jpeg'
     )
 
     def __init__(self):
@@ -36,6 +38,7 @@ class State(object):
         self.is_error = False
         self.message = ""
         self.commands = []
+        self.vars = {}
 
     def df(self):
         if isinstance(self.data, pd.DataFrame):
@@ -95,13 +98,16 @@ class State(object):
             column_synonyms=self.column_synonyms,
             filename=self.filename,
             extension=self.extension,
-            mime=self.MIMETYPES.get(self.extension),
             log=self.log,
             is_error=self.is_error,
             message=self.message,
-            commands=self.commands
+            commands=self.commands,
+            vars = dict(**self.vars)
         )
-    
+
+    def mimetype(self):
+        return self.MIMETYPES.get(self.extension)
+
     def from_state(self, state):
         if isinstance(state, self.__class__):
             state = state.__dict__
@@ -115,7 +121,11 @@ class State(object):
         self.is_error = state["is_error"]
         self.message = state["message"]
         self.commands = state["commands"]
+        self.vars = state["vars"]
         return self
+
+    def has_flag(self,name):
+        return self.vars.get(name) == True
 
     def clone(self):
         state = self.__class__()
@@ -214,11 +224,77 @@ class State(object):
                 expanded.append((cc, v))
         return expanded
 
+    def as_bytes(self,extension=None):
+        if extension is None:
+            extension = self.extension
+        result = self.data
+        if isinstance(result, pd.DataFrame):
+            df = result
+            if extension == "csv":
+                output = StringIO()
+                df.to_csv(output, index=False)
+                return output.getvalue().encode("utf-8")
+            elif extension == "tsv":
+                output = StringIO()
+                df.to_csv(output, index=False, sep="\t")
+                return output.getvalue().encode("utf-8")
+            elif extension == "json":
+                output = StringIO()
+                df.to_json(output, index=False, orient="table")
+                return output.getvalue().encode("utf-8")
+            elif extension in ("html", "htm"):
+                output = StringIO()
+                df.to_html(output, index=False)
+                return output.getvalue().encode("utf-8")
+            elif extension == "xlsx":
+                output = BytesIO()
+                writer = pd.ExcelWriter(output, engine='xlsxwriter')
+                df.to_excel(writer)
+                writer.close()
+                return output.getvalue()
+            elif extension == "msgpack":
+                output = BytesIO()
+                df.to_msgpack(output)
+                return output.getvalue()
+            else:
+                output = StringIO()
+                df.to_csv(output, index=False)
+                return output.getvalue().encode("utf-8")
+        if isinstance(result, str):
+            return result.encode("utf-8")
+        if isinstance(result, bytes):
+            return result
+        if isinstance(result, dict):
+            return json.dumps(result).encode("utf-8")
+        raise Exception(f"Conversion to bytes not supported for file extension {extension}")
+
+    def from_bytes(self, b, extension=None):
+        if extension is None:
+            extension = self.extension
+        f = BytesIO()
+        f.write(b)
+        f.seek(0)
+        if extension == "csv":
+            self.data = pd.read_csv(f)
+        elif extension == "tsv":
+            self.data = pd.read_csv(f, sep="\t")
+#        elif extension == "json" and self.is_dataframe:
+#            self.data = pd.read_json(f)
+        elif extension == "xlsx":
+            self.data = pd.read_excel(f)
+        elif extension == "msgpack":
+            self.data = pd.read_msgpack(f)
+        elif extension in ["htm","html","txt"]:
+            self.data = b.decode("utf-8")
+        else:
+            self.data = b
+        return self
+
     def response(self):
         if self.is_error:
             return jsonify(self.state())
 
-        mimetype = self.MIMETYPES.get(self.extension, "text/plain")
+        mimetype = self.mimetype()
         result = self.data
 
         if isinstance(result, pd.DataFrame):

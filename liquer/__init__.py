@@ -127,6 +127,7 @@ def df_source(f):
 def start_state(query):
     state = cache().get(query)
     if state is not None:
+        state.log_info("Cached")
         return state,[]
 
     ql=parse(query)
@@ -135,6 +136,7 @@ def start_state(query):
         partial_query = encode(partial_commands)
         state = cache().get(partial_query)
         if state is not None:
+            state.log_info("From cache: "+partial_query)
             ql = ql[i+1:]
             break
     if state is None:
@@ -143,6 +145,13 @@ def start_state(query):
 
 def process(query):
     state, ql = start_state(query)
+    return process_ql_on_state(state,ql)
+
+def process_on(state,query):
+    ql=parse(query)
+    return process_ql_on_state(state,ql)
+
+def process_ql_on_state(state,ql):
     for i,qv in enumerate(ql):
         state.commands.append(qv)
         state.query = encode(state.commands)
@@ -164,6 +173,7 @@ def process(query):
 
     cache().store(state, final_state=False)
     return state
+
 
 def commands_data():
     return {name:{key:value for key,value in cmd._asdict().items() if key!="f"} for name,cmd in COMMANDS.items()}
