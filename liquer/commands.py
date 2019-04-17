@@ -122,10 +122,52 @@ def In(state, command, column, *values):
     return state.with_df(df)
 
 @command
-def Split(state, command, column):
+def Split(state, command, *columns):
     df = state.df()
-    values = df[column].unique()
-    state.data = ", ".join(values)
+    columns = state.expand_columns(columns)
+    if len(columns)==1:
+        keys = [(x,) for x in sorted(df.groupby(columns).groups.keys())]
+    else:
+        keys=sorted(df.groupby(columns).groups.keys())
+
+    data=[]
+    link = Link(state,"Link",linktype="url").data
+    print(keys)
+    for row in keys:
+        pairs = list(zip(columns,row))
+        name="-".join(row)+".csv"
+        d = dict(pairs)
+        select = encode([["Eq"]+[str(x) for p in pairs for x in p]])
+        d["link"]=link+"/"+select+"/"+name
+        data.append(d)
+        print (f"row {row}")
+        print (f"pairs {pairs}")
+        print([str(x) for p in pairs for x in p])
+
+    state.data = pd.DataFrame(data)
+    return state
+
+@command
+def SplitToHtml(state, command, *columns):
+    df = Split(state,"Split",*columns).data
+    html ="<html><body><table>"
+    columns = [c for c in df.columns if c!="link"]
+    html += "<tr>"
+    for c in columns:
+        html+=f"<th>{c}</th>"
+    html += f"<th>link</th>"
+    html += "</tr>"
+    for i,row in df.iterrows():
+        html+="<tr>"
+        for c in columns:
+            html += f"<th>{row[c]}</th>"
+
+        html+=f"<th><a href='{row.link}'>link</a></th>"
+        html+="</tr>"
+
+    html+="</table></body></html>"
+    state.data = html
+    state.extension = "html"
     return state
 
 @command
@@ -172,3 +214,4 @@ def Link(state,command,linktype=None,removelast=True):
 
 
     return state
+
